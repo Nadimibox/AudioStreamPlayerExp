@@ -1,0 +1,74 @@
+[
+  {
+    "name" : "Test 1",
+    "stream" : "https://rogers-hls.leanstream.co/rogers/win921.stream/playlist.m3u8"
+  },
+  {
+    "name": "Test 2",
+    "stream": "http://playerservices.streamtheworld.com/api/livestream-redirect/KTWVFMAAC_SC.aac"
+  },
+  {
+    "name": "Test 3",
+    "stream": "http://playerservices.streamtheworld.com/pls/KCBSFMAAC.pls"
+  },
+  {
+    "name": "Test 4",
+    "stream": "http://espn.edge-1.cis.abacast.net/espn-kspn-cloud.m3u8"
+  },
+  {
+    "name": "Test 5",
+    "stream": "http://stream.revma.ihrhls.com/zc173"
+  },
+  {
+    "name": "Test 6",
+    "stream": "http://andromeda.shoutca.st:9254/listen.pls"
+  },
+  {
+    "name": "Test 7",
+    "stream": "http://144.217.158.59:5024/stream/"
+  },
+  {
+    "name" : "Test 8",
+    "stream" : "https://s5.voscast.com:8517/stream.ogg"
+  },
+  {
+    "name": "Test 9",
+    "stream": "http://stream.abacast.net/playlist/univision-wadoamaac-ibc1.m3u"
+  },
+  {
+    "name" : "Test 10",
+    "stream" : "http://ice8.securenetsystems.net/CTMI.m3u"
+  },
+  {
+    "name" : "Test 11",
+    "stream" : "http://transamerica.crossradio.com.br:9100/listen.pls"
+  },
+  {
+    "name" : "Test 12",
+    "stream" : "http://media-ice.musicradio.com/HeartLondon.m3u"
+  },
+  {
+    "name" : "Test 13",
+    "stream" : "https://rogers-hls.leanstream.co/rogers/tor981.stream/48k/playlist.m3u8"
+  },
+  {
+    "name" : "Test 14",
+    "stream" : "http://media-ice.musicradio.com/HeartLondon.m3u"
+  },
+  {
+    "name" : "Test 15",
+    "stream" : "http://playerservices.streamtheworld.com/pls/KCBSFMAAC.pls"
+  },
+  {
+    "name" : "Test 16",
+    "stream" : "http://usa12.fastcast4u.com/proxy/reflecti?mp=/1"
+  },
+  {
+    "name" : "Test 17",
+    "stream" : "http://live.cityradio.id:8000/cityradio.ogg"
+  },
+  {
+    "name" : "Test 18",
+    "stream" : "http://s2.voscast.com:9370/listen.pls"
+  }
+]

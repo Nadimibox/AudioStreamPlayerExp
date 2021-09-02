@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_description">Android Online Radios\u00A0</string>
+    <string name="playback_channel_name">RadioPlayerChannel</string>
+</resources>
