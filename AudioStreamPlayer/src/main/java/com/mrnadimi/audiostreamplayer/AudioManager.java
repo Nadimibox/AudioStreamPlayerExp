@@ -1,9 +1,11 @@
 package com.mrnadimi.audiostreamplayer;
 
 import android.app.Activity;
+import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.net.TrafficStats;
 import android.os.Bundle;
@@ -47,6 +49,8 @@ public class AudioManager{
     //Channeli ke in class be an eshare mikonad
     private RadioChannel mCurrentChannel;
 
+    private static boolean binded = false;
+
     // Exo Player
     protected SimpleExoPlayer player;
 
@@ -54,6 +58,11 @@ public class AudioManager{
     private PlayerService playerService;
     //Intent mortabet ba service
     private Intent serviceIntent;
+
+    private BroadcastReceiver updateUIReciver;
+    private Class<? extends Activity> activityClass;
+
+
     //in object be ma neshan midahad ke amaliat buffering dar che vaziati ast
     private boolean isBound = false;
 
@@ -70,7 +79,7 @@ public class AudioManager{
 
     protected boolean isBuffering = false;
 
-    private final ServiceConnection serviceConnection;
+    private ServiceConnection serviceConnection;
 
     protected int mPlaybackStatus;
 
@@ -81,31 +90,15 @@ public class AudioManager{
 
     Handler handler = new Handler(Looper.getMainLooper());
 
-    WeakReference<Activity> mActivityWeakReference;
+    private AudioManagerListener audioManagerListener;
 
-    private final AudioManagerListener audioManagerListener;
+
+    private int applicationInfoUid;
 
     /**
      * Thread test sorate net
      */
-    Runnable checkingRunnable = () -> {
-        while (isCheckingThreadRunning) {
-            try {
-                if (isBuffering)
-                {
-                    handler.post(new Runnable() {
-                        @Override
-                        public void run() {
-                            getBufferingInfo(mActivityWeakReference.get());
-                        }
-                    });
-                }
-                Thread.sleep(CHECK_INTERVAL);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-    };
+    Runnable checkingRunnable;
 
 
 
@@ -115,33 +108,69 @@ public class AudioManager{
     public static AudioManager getInstance(Activity activity , AudioManagerListener listener){
         if (audioManager == null){
             audioManager = new AudioManager(activity , listener);
+        }else if (!binded && activity != null && audioManager.serviceIntent != null && audioManager.serviceConnection != null){
+            audioManager.bind(activity);
+        }
+        if (listener != null){
+            audioManager.audioManagerListener = listener;
         }
         return audioManager;
     }
 
     private AudioManager(Activity activity, AudioManagerListener listener) {
-        mActivityWeakReference = new WeakReference<>(activity);
-        this.audioManagerListener = listener;
-        serviceConnection = new ServiceConnection() {
-            @Override
-            public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
-                PlayerService.LocalBinder binder = (PlayerService.LocalBinder) iBinder;
-                playerService = binder.getService();
-                isBound = true;
-                initPlayer();
-            }
-
-            @Override
-            public void onServiceDisconnected(ComponentName componentName) {
-                isBound = false;
-                //Stop service notification
-                playerService.stopForeground(true);
-                //Stop service
-                playerService.stopSelf();
-                playerService = null;
+        this.applicationInfoUid = activity.getApplicationInfo().uid;
+        this.activityClass = activity.getClass();
+        checkingRunnable  = () -> {
+            while (isCheckingThreadRunning) {
+                try {
+                    if (isBuffering)
+                    {
+                        handler.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                getBufferingInfo();
+                            }
+                        });
+                    }
+                    Thread.sleep(CHECK_INTERVAL);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
             }
         };
+        this.audioManagerListener = listener;
+        if (serviceConnection == null) {
+            serviceConnection = new ServiceConnection() {
+                @Override
+                public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
+                    PlayerService.LocalBinder binder = (PlayerService.LocalBinder) iBinder;
+                    playerService = binder.getService();
+                    isBound = true;
+                    initPlayer();
+                }
+
+                @Override
+                public void onServiceDisconnected(ComponentName componentName) {
+                    isBound = false;
+                    //Stop service notification
+                    playerService.stopForeground(true);
+                    //Stop service
+                    playerService.stopSelf();
+                    playerService = null;
+                }
+            };
+        }
         startCheckingThread();
+
+
+    }
+
+    private void bind(Activity activity){
+        if (serviceIntent!= null){
+            activity.bindService(serviceIntent, serviceConnection, 0);
+            binded = true;
+            registerReviver(activity);
+        }
     }
 
     /**
@@ -184,13 +213,13 @@ public class AudioManager{
                 case Player.STATE_ENDED:
                     hideBufferingInfo();
                     mPlaybackStatus = PlaybackStatus.STOPPED;
-                    onLoading(false);
+                    onLoading(false );
                     onStoping();
                     break;
                 case Player.STATE_READY:
                     mPlaybackStatus = PlaybackStatus.PLAYING;
                     hideBufferingInfo();
-                    onLoading(false);
+                    onLoading(false );
                     onPlaying();
                     break;
                 //Zamani ke paksh ba moshkel movajeh shavad
@@ -211,7 +240,7 @@ public class AudioManager{
                                 URL link = new URL(mCurrentChannel.url);
                                 HttpURLConnection http = (HttpURLConnection)link.openConnection();
                                 http.setReadTimeout(10000);
-                                Log.w("Status" , " "+http.getResponseCode() );
+                                Log.w("Status--" , " "+http.getResponseCode() );
                                 if (http.getResponseCode() != 200){
                                     handler.post(new Runnable() {
                                         @Override
@@ -243,7 +272,7 @@ public class AudioManager{
                                             hideBufferingInfo();
                                         }else{
                                             RadioChannel radioChannel = new RadioChannel(mCurrentChannel.name , links.get(0));
-                                            play( radioChannel);
+                                            play(null ,  radioChannel);
                                         }
                                     }
                                 });
@@ -313,9 +342,16 @@ public class AudioManager{
      *
      * @param loading true bashad dar hale loading ast va false bashad loading tamam shode ast
      */
-    private void onLoading(boolean loading){
+    private void onLoading(boolean loading ){
         try {
             if (audioManagerListener != null) {
+                Intent local = new Intent();
+                local.setAction("com.hello.action");
+                local.putExtra("loading" , loading);
+                if (playerService != null) {
+                    playerService.sendBroadcast(local);
+                    return;
+                }
                 audioManagerListener.onLoading(loading);
             }
         }catch (Exception ex){
@@ -339,13 +375,12 @@ public class AudioManager{
 
     /**
      *
-     * @param context
      * @return
      * Daryafte sorate internet
      */
-    private long getNetSpeed(Context context) {
+    private long getNetSpeed(int applicationInfoUid) {
 
-        long nowTotalRxBytes = TrafficStats.getUidRxBytes(context.getApplicationInfo().uid) == TrafficStats.UNSUPPORTED ? 0 : TrafficStats.getTotalRxBytes();
+        long nowTotalRxBytes = TrafficStats.getUidRxBytes(applicationInfoUid) == TrafficStats.UNSUPPORTED ? 0 : TrafficStats.getTotalRxBytes();
         long nowTimeStamp = System.currentTimeMillis();
         long calculationTime = (nowTimeStamp - lastTimeStamp);
         if (calculationTime == 0) {
@@ -360,10 +395,9 @@ public class AudioManager{
 
     /**
      *
-     * @param context Etelaate buffer ha ra bar asase sorat net daryaft mikonad
      */
-    private void getBufferingInfo(Context context) {
-        String bufferingInfo = getNetSpeedText(getNetSpeed(context));
+    private void getBufferingInfo() {
+        String bufferingInfo = getNetSpeedText(getNetSpeed(applicationInfoUid));
         //netSpeedBar.setText(bufferingInfo);
         //netSpeedBall.setText(bufferingInfo);
         Log.e("Net Speed" , ""+bufferingInfo);
@@ -386,14 +420,14 @@ public class AudioManager{
         return text;
     }
 
-    public void play( RadioChannel station){
+    public void play(Activity activity , RadioChannel station){
         if (mPlaybackStatus == PlaybackStatus.PLAYING && station.equals(mCurrentChannel)){
             return;
         }
         onLoading(true);
         if (mCurrentChannel != null && (mPlaybackStatus != PlaybackStatus.STOPPED)){
             stopPlaying();
-            onLoading(true);
+            onLoading(true );
         }
 
         Log.e("type" , " "+mPlaybackStatus);
@@ -406,7 +440,7 @@ public class AudioManager{
             case PlaybackStatus.PAUSED:
             case PlaybackStatus.STOPPED:
                 if (null != mCurrentChannel && !mCurrentChannel.url.isEmpty()) {
-                    insidePlay(mActivityWeakReference.get() , mCurrentChannel);
+                    insidePlay(activity, mCurrentChannel);
                 }
                 break;
             case PlaybackStatus.PLAYING:
@@ -432,16 +466,37 @@ public class AudioManager{
         addChannel(channel);
         setLastBarActiveTimeStamp();
         if (serviceIntent == null) {
+            System.out.println("--\n--\n--\n--\n--\n---------a-----------\n--\n--\n--\n----------------\n--\n--\n--");
             serviceIntent = new Intent(activity, PlayerService.class);
             Bundle serviceBundle = new Bundle();
             serviceBundle.putParcelable("Station", mCurrentChannel);
             serviceBundle.putSerializable("activity_class" , activity.getClass());
             serviceIntent.putExtra("Bundle", serviceBundle);
-            activity.bindService(serviceIntent, serviceConnection, 0);
+            bind(activity);
             Util.startForegroundService(activity, serviceIntent);
         } else if (playerService != null) {
-            playerService.play(mCurrentChannel, activity.getClass());
+            playerService.play(mCurrentChannel, activityClass);
         }
+    }
+
+    private void registerReviver(Activity activity){
+        IntentFilter filter = new IntentFilter();
+
+        filter.addAction("com.hello.action");
+
+        if (updateUIReciver == null)
+        updateUIReciver = new BroadcastReceiver() {
+
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                //UI update here
+                Log.e("hereee---" , "-----------------------------------------------------");
+                if (audioManagerListener != null){
+                    audioManagerListener.onLoading(intent.getExtras().getBoolean("loading"));
+                }
+            }
+        };
+        activity.registerReceiver(updateUIReciver,filter);
     }
 
     public void pausePlaying() {
@@ -511,7 +566,7 @@ public class AudioManager{
     /**
      * Bayad dar zamani ke kar ma ba application tamam shod in ra farakhani konim
      */
-    public void releasePlayer() {
+    public void releasePlayer(Activity activity) {
         stopCheckingThread();
         stopPlaying();
         if (player != null) {
@@ -520,17 +575,32 @@ public class AudioManager{
             player = null;
         }
         if (serviceIntent != null){
-            mActivityWeakReference.get().stopService(serviceIntent);
-            mActivityWeakReference.get().unbindService(serviceConnection);
+            activity.stopService(serviceIntent);
+            activity.unbindService(serviceConnection);
+        }
+        if (updateUIReciver != null){
+            activity.unregisterReceiver(updateUIReciver);
         }
         serviceIntent = null;
-        mActivityWeakReference = null;
         playerService = null;
+        serviceConnection = null;
+        updateUIReciver = null;
         handler = null;
         audioManager = null;
+        binded = false;
         Looper.loop();
         Looper.myLooper().quit();
         android.os.Process.killProcess(android.os.Process.myPid());
+    }
+
+    public void unbind(Activity activity){
+        if (serviceIntent != null){
+            activity.unbindService(serviceConnection);
+            binded = false;
+        }
+        if (updateUIReciver != null){
+            activity.unregisterReceiver(updateUIReciver);
+        }
     }
 
     /**

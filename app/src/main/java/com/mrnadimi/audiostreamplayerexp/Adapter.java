@@ -19,6 +19,7 @@ import com.mrnadimi.audiostreamplayer.RadioChannel;
 
 import org.jetbrains.annotations.NotNull;
 
+import java.lang.ref.WeakReference;
 import java.util.List;
 
 /**
@@ -36,20 +37,26 @@ public class Adapter extends RecyclerView.Adapter<Adapter.ItemViewHolder> {
     private ItemViewHolder lastItem;
     AudioManager audioManager;
 
+    WeakReference<Activity> weaActivity;
+
+
     public Adapter(Activity activity , List<RadioChannel> items) {
         this.items = items;
+        weaActivity = new WeakReference<>(activity);
         ProgressDialog p = new ProgressDialog(activity);
         p.setCancelable(false);
         p.setCanceledOnTouchOutside(false);
         audioManager = AudioManager.getInstance(activity, new AudioManagerListener() {
             @Override
             public void onLoading(boolean progress) {
-                Log.e("onLoading" , "onLoading: "+progress);
+                Log.e("Loading" , "is:"+progress);
                 if (progress){
                     p.show();
-                }else{
+                }else {
                     p.dismiss();
                 }
+
+
             }
 
             @Override
@@ -118,7 +125,7 @@ public class Adapter extends RecyclerView.Adapter<Adapter.ItemViewHolder> {
                         lastItem.isPlaing = false;
                     }
                     lastItem = holder;
-                    audioManager.play( channel);
+                    audioManager.play(weaActivity.get() ,  channel);
                     ((ImageView)v).setImageResource(R.drawable.ic_baseline_pause_24);
                     holder.isPlaing = true;
                 }else{

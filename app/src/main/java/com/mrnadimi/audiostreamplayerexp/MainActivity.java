@@ -19,11 +19,11 @@ import java.util.List;
 
 public class MainActivity extends FragmentActivity {
 
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
         //List sakhte mishavad
         RecyclerView recyclerView = findViewById(R.id.recycle);
         LinearLayoutManager llm = new LinearLayoutManager(this);
@@ -47,6 +47,7 @@ public class MainActivity extends FragmentActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        AudioManager.getInstance(this , null).releasePlayer();
+        //AudioManager.getInstance(this , null).releasePlayer(this);
+        AudioManager.getInstance(this , null).unbind(this);
     }
 }
